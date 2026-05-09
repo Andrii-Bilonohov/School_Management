@@ -1,0 +1,459 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<style>
+  /* ══ PROFILE CARD ════════════════════════════════════════════ */
+  .profile-card h2 {
+    color: #eceef5 !important;
+    font-size: 19px;
+    font-weight: 700;
+  }
+  .profile-card h3 {
+    color: #8890a4 !important;
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 400;
+    letter-spacing: .5px;
+  }
+
+  /* ══ QUICK STATS ═════════════════════════════════════════════ */
+  .quick-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 0;
+    border-bottom: 1px solid #1e2330;
+  }
+  .quick-stat-item:last-child { border-bottom: none; }
+
+  .quick-stat-item .stat-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #7a8299;       /* читаемый серый */
+    font-size: 13px;
+  }
+  .quick-stat-item .stat-label i {
+    color: #5b6af5;
+    font-size: 15px;
+    width: 18px;
+    text-align: center;
+  }
+  .quick-stat-item .stat-value {
+    color: #d4d8e8;        /* светлее чем лейбл */
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  /* ══ TABS ════════════════════════════════════════════════════ */
+  .nav-tabs-bordered .nav-link { color: #6b7490; }
+  .nav-tabs-bordered .nav-link:hover { color: #c0c5d8; }
+  .nav-tabs-bordered .nav-link.active { color: #7b8cff; border-bottom-color: #5b6af5; }
+
+  /* ══ OVERVIEW ROWS ═══════════════════════════════════════════ */
+  .profile-overview .row { padding: 5px 0; }
+
+  /* лейбл (левая колонка) */
+  .profile-overview .field-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5a6275;
+    font-weight: 400;
+    padding-top: 3px;
+  }
+
+  /* значение (правая колонка) */
+  .profile-overview .field-value {
+    color: #d4d8e8;
+    font-size: 13px;
+  }
+
+  /* ══ ACTIVITY LOG ════════════════════════════════════════════ */
+  .activity-entry {
+    display: flex;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid #1a1e2a;
+  }
+  .activity-entry:last-child { border-bottom: none; }
+
+  .activity-time {
+    min-width: 90px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: #454d62;
+    padding-top: 3px;
+    flex-shrink: 0;
+  }
+  .activity-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #5b6af5;
+    margin-top: 5px;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(91,106,245,.5);
+  }
+  .activity-title {
+    color: #d4d8e8;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .activity-desc {
+    color: #5a6275;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pagetitle">
+  <h1>Student Profile</h1>
+  <nav>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'students:student_list' %}">Students</a></li>
+      <li class="breadcrumb-item active">{{ student }}</li>
+    </ol>
+  </nav>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+      <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<section class="section profile">
+  <div class="row">
+
+    <div class="col-xl-4">
+      <div class="card">
+        <div class="card-body profile-card pt-4 d-flex flex-column align-items-center text-center">
+          {% if student.photo %}
+            <img src="{{ student.photo.url }}" alt="{{ student }}" class="rounded-circle shadow-sm">
+          {% else %}
+            <img src="{% static 'img/profile-img.png' %}" alt="default profile" class="rounded-circle shadow-sm">
+          {% endif %}
+
+          <div class="mt-3">
+            <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#imageModal">
+              <i class="bi bi-image me-1"></i>Change Photo
+            </a>
+          </div>
+
+          <h2 class="mt-3">{{ student }}</h2>
+          <h3 class="mt-1">{{ student.get_current_school_level_display }}</h3>
+
+          <div class="mt-2">
+            {% if student.enrollment_status == 'active' %}
+              <span class="badge bg-success">{{ student.get_enrollment_status_display }}</span>
+            {% elif student.enrollment_status == 'graduated' %}
+              <span class="badge bg-warning">{{ student.get_enrollment_status_display }}</span>
+            {% elif student.enrollment_status == 'disabled' %}
+              <span class="badge bg-danger">{{ student.get_enrollment_status_display }}</span>
+            {% elif student.enrollment_status == 'transferred' %}
+              <span class="badge bg-secondary">{{ student.get_enrollment_status_display }}</span>
+            {% endif %}
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-sm btn-warning">
+              <i class="bi bi-pencil me-1"></i>Edit
+            </a>
+            <a href="#" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteStudent{{ student.pk }}">
+              <i class="bi bi-trash me-1"></i>Delete
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Quick Stats</h5>
+          <div>
+            <div class="quick-stat-item">
+              <span class="stat-label"><i class="bi bi-calendar-event"></i>Age</span>
+              <span class="stat-value">{{ student.get_age }} yrs</span>
+            </div>
+            <div class="quick-stat-item">
+              <span class="stat-label"><i class="bi bi-gender-ambiguous"></i>Gender</span>
+              <span class="stat-value">{{ student.get_gender_display }}</span>
+            </div>
+            <div class="quick-stat-item">
+              <span class="stat-label"><i class="bi bi-book"></i>Class</span>
+              <span class="stat-value">{{ student.current_school_level }}</span>
+            </div>
+            <div class="quick-stat-item">
+              <span class="stat-label"><i class="bi bi-person-check"></i>Status</span>
+              <span class="stat-value">{{ student.get_enrollment_status_display }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-8">
+      <div class="card">
+        <div class="card-body pt-3">
+          <ul class="nav nav-tabs nav-tabs-bordered">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#profile-overview">Overview</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#academic-info">Academic Info</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#activity-log">Activity Log</button>
+            </li>
+          </ul>
+
+          <div class="tab-content pt-4">
+
+            <div class="tab-pane fade show active profile-overview" id="profile-overview">
+              <h5 class="card-title">Personal Information</h5>
+
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Full Name</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">First Name</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.first_name }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Last Name</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.last_name }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Gender</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.gender }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Date of Birth</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.birth_date }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Age</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.get_age }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Student ID</div>
+                <div class="col-lg-8 col-md-8 field-value"><code>{{ student.id }}</code></div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade profile-overview" id="academic-info">
+              <h5 class="card-title">Academic Details</h5>
+
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Current Class</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.current_school_level }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Enrollment Status</div>
+                <div class="col-lg-8 col-md-8 field-value">
+                  {% if student.enrollment_status == 'active' %}
+                    <span class="badge bg-success">{{ student.get_enrollment_status_display }}</span>
+                  {% elif student.enrollment_status == 'graduated' %}
+                    <span class="badge bg-warning">{{ student.get_enrollment_status_display }}</span>
+                  {% elif student.enrollment_status == 'disabled' %}
+                    <span class="badge bg-danger">{{ student.get_enrollment_status_display }}</span>
+                  {% elif student.enrollment_status == 'transferred' %}
+                    <span class="badge bg-secondary">{{ student.get_enrollment_status_display }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Enrollment Since</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.created_at|date:"M d, Y" }}</div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-lg-4 col-md-4 field-label">Last Updated</div>
+                <div class="col-lg-8 col-md-8 field-value">{{ student.updated_at|date:"M d, Y" }}</div>
+              </div>
+            </div>
+
+            <div class="tab-pane fade profile-overview" id="activity-log">
+              <h5 class="card-title">Recent Activity</h5>
+
+              <div class="mt-2">
+                <div class="activity-entry">
+                  <div class="activity-time">{{ student.updated_at|timesince }} ago</div>
+                  <div class="activity-dot"></div>
+                  <div>
+                    <div class="activity-title">Profile updated</div>
+                    <div class="activity-desc">The student information was modified</div>
+                  </div>
+                </div>
+
+                <div class="activity-entry">
+                  <div class="activity-time">{{ student.created_at|timesince }} ago</div>
+                  <div class="activity-dot"></div>
+                  <div>
+                    <div class="activity-title">Student Enrolled</div>
+                    <div class="activity-desc">Initial profile was created</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="modal fade" tabindex="-1" id="deleteStudent{{ student.pk }}">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+        <p style="color: var(--text-secondary);">Are you sure you want to delete <strong style="color: var(--text-primary);">{{ student }}</strong>?</p>
+        <p style="color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form action="{% url 'students:student_delete' student.pk %}" method="post" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Delete Student</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" tabindex="-1" id="imageModal">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Profile Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="browse-section" class="text-center py-5">
+          <h6 class="mb-3" style="color: var(--text-muted);">Upload a Profile Picture</h6>
+          <label class="btn btn-primary" for="uploadImage">
+            <i class="bi bi-upload me-2"></i>Choose image
+          </label>
+          <input type="file" id="uploadImage" style="display: none;">
+          <div class="mt-3">
+            <small style="color: var(--text-muted); font-family: var(--font-mono); font-size: 11px;">
+              <i class="bi bi-info-circle me-1"></i>Supported formats: JPG, PNG
+            </small>
+          </div>
+        </div>
+        <div id="image-container" style="display: none;">
+          <div class="position-relative" style="max-height: 400px; overflow: hidden; border-radius: 10px; background: var(--bg-elevated);">
+            <img src="" alt="Preview Image" id="imagePreview" style="max-width: 100%; height: auto; display: block;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCrop" class="btn btn-primary" style="display: none;"><i class="bi bi-crop me-2"></i>Crop</button>
+        <button id="btnSave" type="button" class="btn btn-primary"><i class="bi bi-check-lg me-2"></i>Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-lg me-2"></i>Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const uploadImage = document.querySelector("#uploadImage"),
+        imagePreview = document.querySelector("#imagePreview"),
+        btnCrop = document.querySelector("#btnCrop"),
+        btnSave = document.querySelector("#btnSave"),
+        browseSection = document.querySelector("#browse-section"),
+        imageContainer = document.querySelector("#image-container");
+
+  const updateProfilePicture = "{% url 'students:ajax_update_student_profile_picture' %}";
+  const studentId = "{{ student.id }}";
+  let cropper = null;
+
+  if (uploadImage) {
+    uploadImage.addEventListener("change", (evt) => {
+      const file = evt.target.files[0];
+      if (file) {
+        const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+        if (!allowedTypes.includes(file.type)) {
+          Swal.fire({ title: "Error", text: "Only JPG/PNG allowed", icon: "error", background: "#1c2029", color: "#e8eaf0" });
+          uploadImage.value = "";
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          browseSection.style.display = "none";
+          imageContainer.style.display = "block";
+          imagePreview.src = e.target.result;
+          if (cropper) cropper.destroy();
+          cropper = new Cropper(imagePreview, {
+            aspectRatio: 1, viewMode: 2, dragMode: "move", responsive: true,
+            ready() { btnCrop.style.display = "inline-block"; }
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  if (btnCrop) {
+    btnCrop.addEventListener("click", () => {
+      if (!cropper) return;
+      const canvas = cropper.getCroppedCanvas({ width: 350, height: 350 });
+      imagePreview.src = canvas.toDataURL("image/jpeg", 1.0);
+      cropper.destroy(); cropper = null;
+      btnCrop.style.display = "none";
+      btnSave.style.display = "inline-block";
+    });
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener("click", () => {
+      if (!imagePreview.src) {
+        Swal.fire({ title: "Error", text: "No image selected", icon: "error", background: "#1c2029", color: "#e8eaf0" });
+        return;
+      }
+      Swal.fire({ title: "Uploading...", allowOutsideClick: false, showConfirmButton: false, background: "#1c2029", color: "#e8eaf0", didOpen: () => Swal.showLoading() });
+      fetch(updateProfilePicture, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]')?.value || "" },
+        body: JSON.stringify({ student_id: studentId, image: imagePreview.src })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          Swal.fire({ title: "Success", text: data.message, icon: "success", timer: 1500, showConfirmButton: false, background: "#1c2029", color: "#e8eaf0" })
+            .then(() => { window.location.href = data.redirect_url || window.location.href; });
+        } else {
+          Swal.fire({ title: "Error", text: data.message || "Upload failed", icon: "error", background: "#1c2029", color: "#e8eaf0" });
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        Swal.fire({ title: "Error", text: "Network or server error", icon: "error", background: "#1c2029", color: "#e8eaf0" });
+      });
+    });
+  }
+});
+</script>
+{% endblock %}

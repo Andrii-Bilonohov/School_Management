@@ -1,0 +1,348 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+  /* ══ TABLE CONTRAST ══════════════════════════════════════════ */
+  .table thead tr { background: #272b38; }
+  .table thead th {
+    color: #9ba3b8;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    font-weight: 400;
+    padding: 12px 16px;
+    border-bottom: 1px solid #3a3f54;
+    white-space: nowrap;
+  }
+  .table tbody tr { border-bottom: 1px solid #2e3346; }
+  .table tbody tr:hover { background: #313649 !important; }
+  .table tbody tr:nth-child(odd) { background: #252936; }
+  .table tbody tr:nth-child(even) { background: #2a2e3d; }
+
+  .table td {
+    color: #d4d8e8;
+    padding: 13px 16px;
+    vertical-align: middle;
+    border: none;
+    font-size: 13px;
+  }
+
+  .td-counter {
+    color: #5a6275 !important;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    width: 40px;
+  }
+
+  .student-fullname {
+    color: black !important;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .student-photo {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #3a3f54;
+    flex-shrink: 0;
+  }
+  .student-name-cell { display: flex; align-items: center; gap: 11px; }
+
+  .td-secondary { color: black !important; }
+
+  .td-age {
+    color: black !important;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+  }
+
+  .search-wrap {
+    position: relative;
+    max-width: 360px;
+    width: 100%;
+  }
+  .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: #525c72;
+    font-size: 15px;
+    pointer-events: none;
+    transition: color .2s;
+    z-index: 2;
+  }
+  #studentSearch {
+    background: #252936;
+    border: 1px solid #3a3f54;
+    border-radius: 9px;
+    color: #eceef5;
+    font-size: 13px;
+    font-family: 'Syne', sans-serif;
+    padding: 10px 36px 10px 38px;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  #studentSearch::placeholder { color: #434a5e; }
+  #studentSearch:focus {
+    border-color: #5b6af5;
+    box-shadow: 0 0 0 3px rgba(91,106,245,.14);
+  }
+  #studentSearch:focus + .search-icon { color: #5b6af5; }
+
+  #searchClear {
+    position: absolute;
+    right: 11px; top: 50%;
+    transform: translateY(-50%);
+    background: none; border: none;
+    color: #434a5e;
+    font-size: 17px; line-height: 1;
+    cursor: pointer; padding: 0;
+    display: none;
+    transition: color .15s;
+  }
+  #searchClear:hover { color: #d4d8e8; }
+
+  #resultCount {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: #5a6275;
+    white-space: nowrap;
+  }
+
+  mark.hl {
+    background: rgba(91,106,245,.22);
+    color: #a0aaff;
+    border-radius: 3px;
+    padding: 0 2px;
+  }
+
+  #noResultsRow { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="pagetitle">
+    <h1>Students Directory</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+        <li class="breadcrumb-item active">Students List</li>
+      </ol>
+    </nav>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <section class="section dashboard">
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-4" style="border-bottom: 1px solid #1e2330; padding-bottom: 14px;">
+              <h5 class="card-title mb-0" style="border: none; padding: 0;">Registered Students</h5>
+              <a href="{% url 'students:student_create' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-user-plus me-2"></i>Add New Student
+              </a>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+              <div class="search-wrap">
+                <input type="text" id="studentSearch" placeholder="Search by first or last name…" autocomplete="off">
+                <i class="bi bi-search search-icon"></i>
+                <button id="searchClear" title="Clear">×</button>
+              </div>
+              <span id="resultCount"></span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width:40px">#</th>
+                    <th>Name</th>
+                    <th>Gender</th>
+                    <th>Academic Level</th>
+                    <th>Age</th>
+                    <th>Enrollment</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for student in students %}
+                  <tr class="student-row" data-name="{{ student.first_name|lower }} {{ student.last_name|lower }}">
+                    <td class="td-counter">{{ forloop.counter }}</td>
+                    <td>
+                      <div class="student-name-cell">
+                        {% if student.photo %}
+                          <img src="{{ student.photo.url }}" alt="{{ student }}" class="student-photo">
+                        {% else %}
+                          <img src="{% static 'img/student-img.jpg' %}" alt="default profile" class="student-photo">
+                        {% endif %}
+                        <h6 class="student-fullname">{{ student.first_name }} {{ student.last_name }}</h6>
+                      </div>
+                    </td>
+                    <td class="td-secondary">{{ student.get_gender_display }}</td>
+                    <td class="td-secondary">{{ student.current_school_level }}</td>
+                    <td class="td-age">{{ student.get_age }}</td>
+                    <td>
+                      {% if student.enrollment_status == 'active' %}
+                        <span class="badge bg-success">{{ student.get_enrollment_status_display }}</span>
+                      {% elif student.enrollment_status == 'graduated' %}
+                        <span class="badge bg-warning">{{ student.get_enrollment_status_display }}</span>
+                      {% elif student.enrollment_status == 'disabled' %}
+                        <span class="badge bg-danger">{{ student.get_enrollment_status_display }}</span>
+                      {% elif student.enrollment_status == 'transferred' %}
+                        <span class="badge bg-secondary">{{ student.get_enrollment_status_display }}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="d-flex gap-1">
+                        <a href="{% url 'students:student_profile' student.pk %}" class="btn btn-sm btn-primary">
+                          <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'students:student_edit' student.pk %}" class="btn btn-sm btn-warning">
+                          <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-danger"
+                           data-bs-toggle="modal"
+                           data-bs-target="#deleteStudent{{ student.pk }}">
+                          <i class="bi bi-trash"></i>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5" style="color:#5a6275;">
+                      <i class="bi bi-people" style="font-size:32px;display:block;margin-bottom:10px;opacity:.4;"></i>
+                      No students found
+                    </td>
+                  </tr>
+                  {% endfor %}
+
+                  <!-- JS no-results row -->
+                  <tr id="noResultsRow">
+                    <td colspan="7" class="text-center py-5" style="color:#5a6275;">
+                      <i class="bi bi-search" style="font-size:26px;display:block;margin-bottom:10px;color:#5b6af5;opacity:.5;"></i>
+                      No students match "<span id="noResultsQuery" style="color:#a0aaff;font-family:'Space Mono',monospace;"></span>"
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {% for student in students %}
+  <div class="modal fade" tabindex="-1" id="deleteStudent{{ student.pk }}">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirm Delete</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <div style="font-size: 40px; margin-bottom: 12px;">⚠️</div>
+          <p style="color: var(--text-secondary);">Are you sure you want to delete <strong style="color: var(--text-primary);">{{ student }}</strong>?</p>
+          <p style="color: var(--text-muted); font-size: 12px; font-family: var(--font-mono);">This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <form action="{% url 'students:student_delete' student.pk %}" method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete Student</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const input      = document.getElementById('studentSearch');
+  const clearBtn   = document.getElementById('searchClear');
+  const counter    = document.getElementById('resultCount');
+  const noResults  = document.getElementById('noResultsRow');
+  const noResQuery = document.getElementById('noResultsQuery');
+  const rows       = document.querySelectorAll('.student-row');
+  const total      = rows.length;
+
+  function escapeRe(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function highlight(text, query) {
+    if (!query) return text;
+    const re = new RegExp(`(${escapeRe(query)})`, 'gi');
+    return text.replace(re, '<mark class="hl">$1</mark>');
+  }
+
+  function doSearch() {
+    const raw   = input.value.trim();
+    const query = raw.toLowerCase();
+    let   found = 0;
+
+    clearBtn.style.display = raw ? 'block' : 'none';
+
+    rows.forEach(row => {
+      const nameEl   = row.querySelector('.student-fullname');
+      const origName = nameEl.getAttribute('data-orig') || nameEl.textContent.trim();
+      if (!nameEl.getAttribute('data-orig')) nameEl.setAttribute('data-orig', origName);
+
+      const dataName = row.getAttribute('data-name'); // lowercase already
+      const match    = !query || dataName.includes(query);
+
+      row.style.display = match ? '' : 'none';
+      if (match) {
+        found++;
+        nameEl.innerHTML = highlight(origName, raw);
+      } else {
+        nameEl.textContent = origName;
+      }
+    });
+
+    if (query) {
+      counter.textContent = `${found} of ${total} student${total !== 1 ? 's' : ''}`;
+    } else {
+      counter.textContent = '';
+    }
+
+    if (query && found === 0) {
+      noResults.style.display = '';
+      noResQuery.textContent  = raw;
+    } else {
+      noResults.style.display = 'none';
+    }
+  }
+
+  input.addEventListener('input', doSearch);
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    input.focus();
+    doSearch();
+  });
+})();
+</script>
+{% endblock %}
